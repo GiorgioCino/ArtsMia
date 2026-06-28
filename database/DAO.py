@@ -1,6 +1,81 @@
 from database.DB_connect import DBConnect
+from model.arco import Arco
+from model.artObject import ArtObject
 
 
 class DAO():
-    def __init__(self):
-        pass
+
+    @staticmethod
+    def getAllNodes():
+        conn = DBConnect.get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        res = []
+        query = """select *
+               from objects o"""
+
+        cursor.execute(query)
+
+        for row in cursor:
+            res.append(ArtObject(**row))
+           ## stessa cosa res.append(ArtObject(*object_id=row["object_id"],...))
+
+        cursor.close()
+        conn.close()
+        return res
+
+    @staticmethod
+    def getEdgePeso(v1, v2):
+        conn = DBConnect.get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        res = []
+        query = """select eo.object_id as o1, eo2.object_id as o2, count(*) as peso
+from exhibition_objects eo , exhibition_objects eo2 
+where eo2.exhibition_id = eo.exhibition_id and eo.object_id < eo2.object_id 
+and eo.object_id = %s and eo2.object_id =%s
+group by eo.object_id, eo2.object_id"""
+
+        cursor.execute(query, (v1.object_id, v2.object_id))
+
+        for row in cursor:
+            res.append(row["peso"]) #puo succedere pero che peso non esista
+
+
+
+
+        cursor.close()
+        conn.close()
+
+        # quindi lo devo gestire
+        if len(res) == 0:
+            return None
+
+        return res
+
+    @staticmethod
+    def getAllEdges(idMapAO):
+        conn = DBConnect.get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        res = []
+        query = """select eo.object_id as o1, eo2.object_id as o2, count(*) as peso
+    from exhibition_objects eo , exhibition_objects eo2 
+    where eo2.exhibition_id = eo.exhibition_id and eo.object_id < eo2.object_id 
+    
+    group by eo.object_id, eo2.object_id
+    order by peso desc"""
+
+        cursor.execute(query)
+
+        for row in cursor:
+            res.append(Arco(idMapAO[row["o1"]],idMapAO[row["o2"]],row["peso"]))  # puo succedere pero che peso non esista
+
+        cursor.close()
+        conn.close()
+
+        # quindi lo devo gestire
+        if len(res) == 0:
+            return None
+
+        return res
